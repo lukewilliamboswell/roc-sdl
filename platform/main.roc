@@ -6,7 +6,7 @@ platform "roc-sdl"
     provides [mainForHost]
 
 Program state : { 
-    init : { h : I32, w : I32 }, 
+    init : { h : I32, w : I32, title : Str }, 
     render : List { x : I32, y : I32, h : I32, w : I32 },
 } where state implements Decoding & Encoding
 
@@ -23,11 +23,9 @@ getToHost = \fromHost, { init, render }  ->
     else 
         "ERROR"
 
-encodeInit : { h : I32, w : I32 } -> Str
 encodeInit = \init -> 
-    "\(Num.toStr init.w) \(Num.toStr init.h)"
+    "\(Num.toStr init.w)|\(Num.toStr init.h)|\(init.title)"
     
-encodeRects : List { x : I32, y : I32, h : I32, w : I32 } -> Str
 encodeRects = \rects ->
     List.map rects \rect -> "\(Num.toStr rect.x) \(Num.toStr rect.y) \(Num.toStr rect.w) \(Num.toStr rect.h)"
     |> Str.joinWith "|"

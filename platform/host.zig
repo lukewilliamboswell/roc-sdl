@@ -110,6 +110,7 @@ const assert = @import("std").debug.assert;
 
 var SCREEN_WIDTH: c_int = undefined;
 var SCREEN_HEIGHT: c_int = undefined;
+var SCREEN_TITLE: [*c]const u8 = undefined;
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -127,8 +128,8 @@ pub fn main() !void {
     defer c.SDL_Quit();
 
     // SETUP WINDOW
-    try setupScreen();
-    const screen = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, c.SDL_WINDOW_OPENGL) orelse
+    try setupScreen(allocator);
+    const screen = c.SDL_CreateWindow(SCREEN_TITLE, c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, c.SDL_WINDOW_OPENGL) orelse
         {
         c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
         return error.SDLInitializationFailed;
@@ -201,19 +202,21 @@ const InitDimensions = struct {
     h: c_int,
 };
 
-fn setupScreen() !void {
+fn setupScreen(allocator: std.mem.Allocator) !void {
     const arg = RocStr.fromSlice("INIT");
     defer arg.decref();
     const callresult = callRoc(arg);
     defer callresult.decref();
 
-    var values = std.mem.splitScalar(u8, callresult.asSlice(), ' ');
+    var values = std.mem.splitScalar(u8, callresult.asSlice(), '|');
 
     const width = values.next() orelse return error.ParseError;
     const height = values.next() orelse return error.ParseError;
+    const title = values.next() orelse return error.ParseError;
 
     SCREEN_WIDTH = try std.fmt.parseInt(c_int, width, 10);
     SCREEN_HEIGHT = try std.fmt.parseInt(c_int, height, 10);
+    SCREEN_TITLE = try toCstr(allocator, title);
 }
 
 fn getRects(allocator: std.mem.Allocator) !std.ArrayList(c.SDL_Rect) {
@@ -246,4 +249,11 @@ fn getRects(allocator: std.mem.Allocator) !std.ArrayList(c.SDL_Rect) {
     }
 
     return rects;
+}
+
+fn toCstr(allocator: std.mem.Allocator, bytes: []const u8) ![*c]const u8 {
+    var c_string = try allocator.alloc(u8, bytes.len + 1);
+    std.mem.copy(u8, c_string, bytes);
+    c_string[bytes.len] = 0;
+    return @as([*c]const u8, c_string.ptr);
 }

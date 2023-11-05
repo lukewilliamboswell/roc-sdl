@@ -6,7 +6,7 @@ app "example"
     provides [program] to pf
 
 program = {
-    init :  { w : 800, h: 600 },
+    init :  { w : 800, h: 600, title: "Roc Loves Graphics" },
     render : [
         { x : 0, y : 0, w : 10, h : 600 },
         { x : 0, y : 0, w : 800, h : 10 },
