@@ -29,6 +29,11 @@ cp zig-out/$obj platform/linux-x64.o
 # Copy the SDL2.framework in the .dmg to /Library/Frameworks
 # ROC_LINK_FLAGS=/Library/Frameworks/SDL2.framework/SDL2 roc run --prebuilt-platform examples/rocLovesGraphics.roc
 
+if [ $? -ne 0 ]; then
+    echo "Build failed. Exiting..."
+    exit 1
+fi
+
 export ROC_LINK_FLAGS=`sdl2-config --libs`
 roc run --prebuilt-platform examples/rocLovesGraphics.roc
 

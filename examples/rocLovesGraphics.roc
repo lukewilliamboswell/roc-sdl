@@ -3,6 +3,10 @@ app "example"
         pf: "../platform/main.roc",
     }
     imports []
-    provides [main] to pf
+    provides [program] to pf
 
-main = \_ -> "Hello World!"
+
+# program : 
+program = {
+    init :  { w : 800, h: 600 },
+}

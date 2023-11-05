@@ -108,14 +108,14 @@ const c = @cImport({
 });
 const assert = @import("std").debug.assert;
 
-const SCREEN_WIDTH: c_int = 640;
-const SCREEN_HEIGHT: c_int = 480;
+var SCREEN_WIDTH: c_int = undefined;
+var SCREEN_HEIGHT: c_int = undefined;
 
 pub fn main() !void {
 
     // CALL ROC
-    const arg = RocStr.fromSlice("Luke");
-    const callresult = callRoc(arg);
+    // const arg = RocStr.fromSlice("Luke");
+    // const callresult = callRoc(arg);
 
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
         c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
@@ -123,6 +123,8 @@ pub fn main() !void {
     }
     defer c.SDL_Quit();
 
+    // SETUP WINDOW
+    try setupScreen();
     const screen = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, c.SDL_WINDOW_OPENGL) orelse
         {
         c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
@@ -173,10 +175,10 @@ pub fn main() !void {
 
         // Render red filled quad
         const fillRect: c.SDL_Rect = .{
-            .x = SCREEN_WIDTH / 4,
-            .y = SCREEN_HEIGHT / 4,
-            .w = SCREEN_WIDTH / 2,
-            .h = SCREEN_HEIGHT / 2,
+            .x = @divTrunc(SCREEN_WIDTH, 4),
+            .y = @divTrunc(SCREEN_HEIGHT, 4),
+            .w = @divTrunc(SCREEN_WIDTH, 2),
+            .h = @divTrunc(SCREEN_HEIGHT, 2),
         };
         _ = c.SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0xFF);
         _ = c.SDL_RenderFillRect(renderer, &fillRect);
@@ -188,4 +190,22 @@ pub fn main() !void {
 
         c.SDL_Delay(17);
     }
+}
+
+const InitDimensions = struct {
+    w: c_int,
+    h: c_int,
+};
+
+fn setupScreen() !void {
+    const arg = RocStr.fromSlice("INIT");
+    const callresult = callRoc(arg);
+
+    var splitIterator = std.mem.splitScalar(u8, callresult.asSlice(), '|');
+
+    const width = splitIterator.next() orelse return error.ParseError;
+    const height = splitIterator.next() orelse return error.ParseError;
+
+    SCREEN_WIDTH = try std.fmt.parseInt(c_int, width, 10);
+    SCREEN_HEIGHT = try std.fmt.parseInt(c_int, height, 10);
 }
