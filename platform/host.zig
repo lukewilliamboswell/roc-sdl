@@ -112,6 +112,9 @@ var SCREEN_WIDTH: c_int = undefined;
 var SCREEN_HEIGHT: c_int = undefined;
 
 pub fn main() !void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
     // CALL ROC
     // const arg = RocStr.fromSlice("Luke");
@@ -173,16 +176,17 @@ pub fn main() !void {
         _ = c.SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
         _ = c.SDL_RenderClear(renderer);
 
-        // Render red filled quad
-        const fillRect: c.SDL_Rect = .{
-            .x = @divTrunc(SCREEN_WIDTH, 4),
-            .y = @divTrunc(SCREEN_HEIGHT, 4),
-            .w = @divTrunc(SCREEN_WIDTH, 2),
-            .h = @divTrunc(SCREEN_HEIGHT, 2),
-        };
-        _ = c.SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0xFF);
-        _ = c.SDL_RenderFillRect(renderer, &fillRect);
+        // Get rects from Roc
+        var rects = try getRects(allocator);
+        defer rects.deinit();
 
+        // Draw each rectangle
+        _ = c.SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0xFF);
+        for (rects.items) |rect| {
+            _ = c.SDL_RenderFillRect(renderer, &rect);
+        }
+
+        // TODO Draw texture
         // _ = c.SDL_RenderCopy(renderer, zig_texture, null, null);
 
         // Update Screen
@@ -199,13 +203,47 @@ const InitDimensions = struct {
 
 fn setupScreen() !void {
     const arg = RocStr.fromSlice("INIT");
+    defer arg.decref();
     const callresult = callRoc(arg);
+    defer callresult.decref();
 
-    var splitIterator = std.mem.splitScalar(u8, callresult.asSlice(), '|');
+    var values = std.mem.splitScalar(u8, callresult.asSlice(), ' ');
 
-    const width = splitIterator.next() orelse return error.ParseError;
-    const height = splitIterator.next() orelse return error.ParseError;
+    const width = values.next() orelse return error.ParseError;
+    const height = values.next() orelse return error.ParseError;
 
     SCREEN_WIDTH = try std.fmt.parseInt(c_int, width, 10);
     SCREEN_HEIGHT = try std.fmt.parseInt(c_int, height, 10);
+}
+
+fn getRects(allocator: std.mem.Allocator) !std.ArrayList(c.SDL_Rect) {
+    const arg = RocStr.fromSlice("RENDER");
+    defer arg.decref();
+    const callresult = callRoc(arg);
+    defer callresult.decref();
+
+    var rects = std.ArrayList(c.SDL_Rect).init(allocator);
+
+    var rectStrs = std.mem.splitScalar(u8, callresult.asSlice(), '|');
+    while (rectStrs.next()) |rectStr| {
+        if (rectStr.len == 0) {
+            continue;
+        }
+
+        var values = std.mem.splitScalar(u8, rectStr, ' ');
+
+        const x = values.next() orelse return error.ParseError;
+        const y = values.next() orelse return error.ParseError;
+        const w = values.next() orelse return error.ParseError;
+        const h = values.next() orelse return error.ParseError;
+
+        try rects.append(.{
+            .x = try std.fmt.parseInt(c_int, x, 10),
+            .y = try std.fmt.parseInt(c_int, y, 10),
+            .w = try std.fmt.parseInt(c_int, w, 10),
+            .h = try std.fmt.parseInt(c_int, h, 10),
+        });
+    }
+
+    return rects;
 }
